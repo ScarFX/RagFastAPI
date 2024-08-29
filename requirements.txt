@@ -1,0 +1,6 @@
+asposestorage==1.0.2
+fastapi==0.112.2
+pydantic==2.8.2
+SQLAlchemy==1.4.32
+uvicorn==0.30.6
+python-multipart==0.0.5
