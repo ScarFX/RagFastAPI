@@ -3,7 +3,7 @@ Barebones project. To implment RAG using fastAPI with no gui (http://127.0.0.1:8
 Run: pip install -r requirements.txt
 
 Need .env with
-OPENAI_API_KEY=$A
+OPENAI_API_KEY=$API_KEY
 PINECONE_API_KEY=$API_KEY
 
 1. Upload a .txt document (or multiple if you want). It will write
