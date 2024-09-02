@@ -13,6 +13,7 @@ from langchain.schema import (
     HumanMessage,SystemMessage,AIMessage)
 from uuid import uuid4
 from pydantic import BaseModel
+import asyncio
 
 
 
@@ -25,7 +26,7 @@ index_name = 'rag-fast-api' #Name Vector Space
 spec = ServerlessSpec(
     cloud="aws", region="us-east-1"
 )
-embed_model = OpenAIEmbeddings(model="text-embedding-ada-002")
+embed_model = OpenAIEmbeddings(model="text-embedding-3-small")
 chat = ChatOpenAI(
     openai_api_key=os.environ["OPENAI_API_KEY"],
     model='gpt-4o-mini-2024-07-18'
@@ -38,8 +39,8 @@ chat = ChatOpenAI(
 async def root() -> dict[str,str]:
     return {"message": "Hello World"}
 
-@app.get("/rag/llm/{query}")
-async def sendAI(query: str) -> dict[str,str]:
+@app.get("/rag/llm/")
+async def sendAI(query: str = Query(...,description="User questions for LLM")) -> dict[str,str]:
     messages = [HumanMessage(content=query)]
     res = chat.invoke(messages)
     return {"AI Response": res.content}
@@ -56,10 +57,10 @@ async def upload_file(file: UploadFile = File(...)) -> dict[str,str] :
         raise HTTPException(status_code=400, detail=f"{file.content_type} is an Invalid file type")
     content = await file.read() #Does read big files? 
     txt =  content.decode('utf-8')
-    #embedStore(txt)
+    await embedStore(txt) #No need to await? 
     return {"filename": file.filename, "message": "File uploaded successfully"}
 
-def embedStore(txt: str) -> None: 
+async def embedStore(txt: str) -> None: 
     existing_indexes = [
     index_info["name"] for index_info in pc.list_indexes()
 
@@ -75,18 +76,18 @@ def embedStore(txt: str) -> None:
         )
         # wait for index to be initialized
         while not pc.describe_index(index_name).status['ready']:
-            time.sleep(1)
+            await asyncio.sleep(1)
     index = pc.Index(index_name)
-    time.sleep(1)
+    await asyncio.sleep(1)
     vector_store = PineconeVectorStore(index, embed_model)
     data = split_into_chunks(txt, 1024) # roughly 10ish lines of text 
     docData = [Document(
         page_content=doc,
-        metadata={'source':'wikipedia'}
+        metadata={'source':'wikipedia'}#did not add metadata
         ) for doc in data]
     # metadata = [{'text': chunk} for chunk in data ] #integers not string chunk
     uuids = [str(uuid4()) for _ in range(len(docData))]
-    vector_store.add_documents(docData, ids=uuids)
+    await vector_store.aadd_documents(docData, ids=uuids) #asyncio.gather(...) runs at same time
 
 def split_into_chunks(text: str, max_tokens: int) -> list[str]:
     words = text.split()
@@ -114,7 +115,7 @@ def split_into_chunks(text: str, max_tokens: int) -> list[str]:
 def similarDocs(query: str) -> str:
     index = pc.Index(index_name)
     vector_store = PineconeVectorStore(index, embed_model)
-    results = vector_store.similarity_search(query, k=1)
+    results =  vector_store.similarity_search(query, k=1)
     # # get the text from the results
     # # feed into an augmented prompt
     # augmented_prompt = f"""Using the contexts below, answer the query.
