@@ -1,4 +1,4 @@
-from fastapi import FastAPI, UploadFile, File
+from fastapi import FastAPI, UploadFile, File, Query, HTTPException
 from dotenv import load_dotenv
 import os
 import time
@@ -10,8 +10,9 @@ from langchain_openai import ChatOpenAI
 from langchain_openai import OpenAIEmbeddings
 from langchain_core.documents import Document
 from langchain.schema import (
-    HumanMessage)
+    HumanMessage,SystemMessage,AIMessage)
 from uuid import uuid4
+from pydantic import BaseModel
 
 
 
@@ -29,28 +30,36 @@ chat = ChatOpenAI(
     openai_api_key=os.environ["OPENAI_API_KEY"],
     model='gpt-4o-mini-2024-07-18'
 )
+# messages = [
+#     SystemMessage(content="You are a helpful assistant."),
+# ] not state transfer 
 
 @app.get("/")
-async def root():
+async def root() -> dict[str,str]:
     return {"message": "Hello World"}
 
-@app.get("/rag/{query}")
-async def getContext(query):
-    prompt = HumanMessage(
-        content=augment_prompt(query)
-    )
-    messages = [prompt] #One message at a time 
+@app.get("/rag/llm/{query}")
+async def sendAI(query: str) -> dict[str,str]:
+    messages = [HumanMessage(content=query)]
     res = chat.invoke(messages)
     return {"AI Response": res.content}
 
-@app.post("/upload")
-async def upload_file(file: UploadFile = File(...)):
+@app.get("/rag/")
+async def getContext(query: str = Query(..., description="The query to process the uploaded documents"),) -> dict[str,str]:
+    context = similarDocs(query)
+    return {"Context": context}
+
+#ADD: upload multiple documents, more than text files 
+@app.post("/sourceFiles") 
+async def upload_file(file: UploadFile = File(...)) -> dict[str,str] :
+    if file.content_type != 'text/plain':
+        raise HTTPException(status_code=400, detail=f"{file.content_type} is an Invalid file type")
     content = await file.read() #Does read big files? 
     txt =  content.decode('utf-8')
-    embedStore(txt)
+    #embedStore(txt)
     return {"filename": file.filename, "message": "File uploaded successfully"}
 
-def embedStore(txt): 
+def embedStore(txt: str) -> None: 
     existing_indexes = [
     index_info["name"] for index_info in pc.list_indexes()
 
@@ -79,7 +88,7 @@ def embedStore(txt):
     uuids = [str(uuid4()) for _ in range(len(docData))]
     vector_store.add_documents(docData, ids=uuids)
 
-def split_into_chunks(text, max_tokens):
+def split_into_chunks(text: str, max_tokens: int) -> list[str]:
     words = text.split()
     chunks = []
     current_chunk = []
@@ -102,17 +111,17 @@ def split_into_chunks(text, max_tokens):
 
     return chunks
 
-def augment_prompt(query: str):
+def similarDocs(query: str) -> str:
     index = pc.Index(index_name)
     vector_store = PineconeVectorStore(index, embed_model)
     results = vector_store.similarity_search(query, k=1)
-    # get the text from the results
+    # # get the text from the results
+    # # feed into an augmented prompt
+    # augmented_prompt = f"""Using the contexts below, answer the query.
+
+    # Contexts:
+    # {source_knowledge}
+
+    # Query: {query}"""
     source_knowledge = "\n".join([res.page_content for res in results])
-    # feed into an augmented prompt
-    augmented_prompt = f"""Using the contexts below, answer the query.
-
-    Contexts:
-    {source_knowledge}
-
-    Query: {query}"""
-    return augmented_prompt
+    return source_knowledge
