@@ -1,4 +1,4 @@
-from fastapi import FastAPI, UploadFile, File, Query, HTTPException
+from fastapi import FastAPI, UploadFile,Query,File, Depends, HTTPException
 from dotenv import load_dotenv
 import os
 import time
@@ -18,6 +18,8 @@ import asyncio
 
 
 load_dotenv() 
+CONCURRENT_LIMIT =int(os.getenv("CONCURRENT_LIMIT",5))
+semaphore = asyncio.Semaphore(CONCURRENT_LIMIT)
 #uvicorn main:app --reload
 app = FastAPI()
 #Global Variables
@@ -34,25 +36,31 @@ chat = ChatOpenAI(
 # messages = [
 #     SystemMessage(content="You are a helpful assistant."),
 # ] not state transfer 
+async def get_semaphore():
+    async with semaphore:
+        yield
 
 @app.get("/")
-async def root() -> dict[str,str]:
+async def root(_=Depends(get_semaphore)) -> dict[str,str]:
     return {"message": "Hello World"}
 
 @app.get("/rag/llm/")
-async def sendAI(query: str = Query(...,description="User questions for LLM")) -> dict[str,str]:
+async def sendAI(query: str = Query(...,description="User questions for LLM"),
+                 _=Depends(get_semaphore)) -> dict[str,str]:
     messages = [HumanMessage(content=query)]
-    res = chat.invoke(messages)
+    res = await chat.ainvoke(messages)
     return {"AI Response": res.content}
 
 @app.get("/rag/")
-async def getContext(query: str = Query(..., description="The query to process the uploaded documents"),) -> dict[str,str]:
+async def getContext(query: str = Query(..., description="The query to process the uploaded documents",
+                                         _=Depends(get_semaphore)),) -> dict[str,str]:
     context = similarDocs(query)
     return {"Context": context}
 
 #ADD: upload multiple documents, more than text files 
 @app.post("/sourceFiles") 
-async def upload_file(file: UploadFile = File(...)) -> dict[str,str] :
+async def upload_file(file: UploadFile = File(...),
+                       _=Depends(get_semaphore)) -> dict[str,str] :
     if file.content_type != 'text/plain':
         raise HTTPException(status_code=400, detail=f"{file.content_type} is an Invalid file type")
     content = await file.read() #Does read big files? 
@@ -60,7 +68,7 @@ async def upload_file(file: UploadFile = File(...)) -> dict[str,str] :
     await embedStore(txt) #No need to await? 
     return {"filename": file.filename, "message": "File uploaded successfully"}
 
-async def embedStore(txt: str) -> None: 
+async def embedStore(txt: str, ) -> None: 
     existing_indexes = [
     index_info["name"] for index_info in pc.list_indexes()
 
@@ -126,3 +134,4 @@ def similarDocs(query: str) -> str:
     # Query: {query}"""
     source_knowledge = "\n".join([res.page_content for res in results])
     return source_knowledge
+
