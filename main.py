@@ -52,13 +52,13 @@ async def sendAI(query: str = Query(...,description="User questions for LLM"),
     return {"AI Response": res.content}
 
 @app.get("/rag/")
-async def getContext(query: str = Query(..., description="The query to process the uploaded documents",
-                                         _=Depends(get_semaphore)),) -> dict[str,str]:
+async def getContext(query: str = Query(..., description="The query to process the uploaded documents"),
+                                         _=Depends(get_semaphore)) -> dict[str,str]:
     context = similarDocs(query)
     return {"Context": context}
 
 #ADD: upload multiple documents, more than text files 
-@app.post("/sourceFiles") 
+@app.post("/documents") 
 async def upload_file(file: UploadFile = File(...),
                        _=Depends(get_semaphore)) -> dict[str,str] :
     if file.content_type != 'text/plain':
