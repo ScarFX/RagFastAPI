@@ -1,4 +1,4 @@
-from fastapi import FastAPI, UploadFile,Query,File, Depends, HTTPException
+from fastapi import FastAPI, UploadFile,Query,Path,File, Depends, HTTPException
 from dotenv import load_dotenv
 import os
 import time
@@ -14,6 +14,7 @@ from langchain.schema import (
 from uuid import uuid4
 from pydantic import BaseModel
 import asyncio
+from datetime import datetime
 
 
 
@@ -53,7 +54,7 @@ async def getContext(query: str = Query(..., description="The query to process t
 
 #ADD: upload multiple documents, more than text files 
 @app.post("/documents") 
-async def upload_file(file: UploadFile = File(...)) -> dict[str,str] :
+async def upload_file(file: UploadFile = File(...) ) -> dict[str,str] :
     if file.content_type != 'text/plain':
         raise HTTPException(status_code=400, detail=f"{file.content_type} is an Invalid file type")
     content = await file.read() #Does read big files? 
@@ -90,7 +91,7 @@ async def embedStore(txt: str, ) -> None:
     await process_documents(docData, vector_store)
 
 async def process_documents(docData: list[Document], vector_store: PineconeVectorStore,
-                             batch_size: int = 20, concurrent_max: int = 5):
+                             batch_size: int = 20, concurrent_max: int = 10):
     semaphore = asyncio.Semaphore(concurrent_max)
     tasks = [] 
     for i in range(0, len(docData), batch_size):
@@ -103,7 +104,10 @@ async def process_documents(docData: list[Document], vector_store: PineconeVecto
 async def process_batch(batch: list[Document], vector_store: PineconeVectorStore, semaphore):
     uuids = [str(uuid4()) for _ in range(len(batch))]
     async with semaphore: 
+        #tStart = datetime.now().time()
         await vector_store.aadd_documents(batch, ids=uuids)
+    #tFinish = datetime.now().time()
+    #print(f'Batch embeddings started at {tStart} and finished at {tFinish}\n')
 
 def split_into_chunks(text: str, max_tokens: int) -> list[str]:
     words = text.split()
