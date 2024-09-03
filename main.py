@@ -18,8 +18,6 @@ import asyncio
 
 
 load_dotenv() 
-CONCURRENT_LIMIT =int(os.getenv("CONCURRENT_LIMIT",5))
-semaphore = asyncio.Semaphore(CONCURRENT_LIMIT)
 #uvicorn main:app --reload
 app = FastAPI()
 #Global Variables
@@ -36,36 +34,31 @@ chat = ChatOpenAI(
 # messages = [
 #     SystemMessage(content="You are a helpful assistant."),
 # ] not state transfer 
-async def get_semaphore():
-    async with semaphore:
-        yield
+
 
 @app.get("/")
-async def root(_=Depends(get_semaphore)) -> dict[str,str]:
+async def root() -> dict[str,str]:
     return {"message": "Hello World"}
 
 @app.get("/rag/llm/")
-async def sendAI(query: str = Query(...,description="User questions for LLM"),
-                 _=Depends(get_semaphore)) -> dict[str,str]:
+async def sendAI(query: str = Query(...,description="User questions for LLM")) -> dict[str,str]:
     messages = [HumanMessage(content=query)]
     res = await chat.ainvoke(messages)
     return {"AI Response": res.content}
 
 @app.get("/rag/")
-async def getContext(query: str = Query(..., description="The query to process the uploaded documents"),
-                                         _=Depends(get_semaphore)) -> dict[str,str]:
+async def getContext(query: str = Query(..., description="The query to process the uploaded documents")) -> dict[str,str]:
     context = similarDocs(query)
     return {"Context": context}
 
 #ADD: upload multiple documents, more than text files 
 @app.post("/documents") 
-async def upload_file(file: UploadFile = File(...),
-                       _=Depends(get_semaphore)) -> dict[str,str] :
+async def upload_file(file: UploadFile = File(...)) -> dict[str,str] :
     if file.content_type != 'text/plain':
         raise HTTPException(status_code=400, detail=f"{file.content_type} is an Invalid file type")
     content = await file.read() #Does read big files? 
     txt =  content.decode('utf-8')
-    await embedStore(txt) #No need to await? 
+    await embedStore(txt)  
     return {"filename": file.filename, "message": "File uploaded successfully"}
 
 async def embedStore(txt: str, ) -> None: 
@@ -84,18 +77,33 @@ async def embedStore(txt: str, ) -> None:
         )
         # wait for index to be initialized
         while not pc.describe_index(index_name).status['ready']:
-            await asyncio.sleep(1)
+            time.sleep(1)
     index = pc.Index(index_name)
-    await asyncio.sleep(1)
+    time.sleep(1)
     vector_store = PineconeVectorStore(index, embed_model)
-    data = split_into_chunks(txt, 1024) # roughly 10ish lines of text 
+    data = split_into_chunks(txt, 2048) # roughly 20ish lines of text 
     docData = [Document(
         page_content=doc,
-        metadata={'source':'wikipedia'}#did not add metadata
+       # metadata={'source':'wikipedia'}#did not add metadata
         ) for doc in data]
     # metadata = [{'text': chunk} for chunk in data ] #integers not string chunk
-    uuids = [str(uuid4()) for _ in range(len(docData))]
-    await vector_store.aadd_documents(docData, ids=uuids) #asyncio.gather(...) runs at same time
+    await process_documents(docData, vector_store)
+
+async def process_documents(docData: list[Document], vector_store: PineconeVectorStore,
+                             batch_size: int = 20, concurrent_max: int = 5):
+    semaphore = asyncio.Semaphore(concurrent_max)
+    tasks = [] 
+    for i in range(0, len(docData), batch_size):
+        batch = docData[i: min(i+batch_size, len(docData))]
+        task = asyncio.create_task(process_batch(batch, vector_store, semaphore))
+        tasks.append(task)
+    await asyncio.gather(*tasks)
+
+        
+async def process_batch(batch: list[Document], vector_store: PineconeVectorStore, semaphore):
+    uuids = [str(uuid4()) for _ in range(len(batch))]
+    async with semaphore: 
+        await vector_store.aadd_documents(batch, ids=uuids)
 
 def split_into_chunks(text: str, max_tokens: int) -> list[str]:
     words = text.split()
