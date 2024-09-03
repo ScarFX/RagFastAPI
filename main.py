@@ -1,4 +1,4 @@
-from fastapi import FastAPI, UploadFile,Query,Path,File, Depends, HTTPException
+from fastapi import FastAPI, UploadFile,Query,Path, Body, File, Depends, HTTPException, Form
 from dotenv import load_dotenv
 import os
 import time
@@ -12,10 +12,14 @@ from langchain_core.documents import Document
 from langchain.schema import (
     HumanMessage,SystemMessage,AIMessage)
 from uuid import uuid4
-from pydantic import BaseModel
+import json
+from pydantic import BaseModel, Field
 import asyncio
 from datetime import datetime
+from typing import Any,Dict, List
 
+class MetaType(BaseModel):
+    metadata: Dict[str,Any] = Field(...)
 
 
 load_dotenv() 
@@ -54,15 +58,23 @@ async def getContext(query: str = Query(..., description="The query to process t
 
 #ADD: upload multiple documents, more than text files 
 @app.post("/documents") 
-async def upload_file(file: UploadFile = File(...) ) -> dict[str,str] :
-    if file.content_type != 'text/plain':
-        raise HTTPException(status_code=400, detail=f"{file.content_type} is an Invalid file type")
-    content = await file.read() #Does read big files? 
-    txt =  content.decode('utf-8')
-    await embedStore(txt)  
-    return {"filename": file.filename, "message": "File uploaded successfully"}
+async def upload_file(files: List[UploadFile] = (File(...)), metaJson: str= Form(...)) -> dict[str,str] :
+    try:
+        metadata: Dict[str, Any] = json.loads(metaJson)
+    except json.JSONDecodeError:
+        return {"error":"Invalid JSON"}
+    tasks = []
+    for file in files:
+        if file.content_type != 'text/plain':
+            raise HTTPException(status_code=400, detail=f"{file.content_type} is an Invalid file type")
+        content = await file.read() #Does read big files? 
+        txt =  content.decode('utf-8')
+        task = asyncio.create_task(embedStore(txt, metadata))
+        tasks.append(task)
+    await asyncio.gather(*tasks)  
+    return {"filename": file.filename, "message": "File/s uploaded successfully"}
 
-async def embedStore(txt: str, ) -> None: 
+async def embedStore(txt: str, metaData ) -> None: 
     existing_indexes = [
     index_info["name"] for index_info in pc.list_indexes()
 
@@ -85,7 +97,7 @@ async def embedStore(txt: str, ) -> None:
     data = split_into_chunks(txt, 2048) # roughly 20ish lines of text 
     docData = [Document(
         page_content=doc,
-       # metadata={'source':'wikipedia'}#did not add metadata
+        metadata=metaData
         ) for doc in data]
     # metadata = [{'text': chunk} for chunk in data ] #integers not string chunk
     await process_documents(docData, vector_store)
