@@ -1,5 +1,6 @@
 from fastapi import FastAPI, UploadFile,Query,Path, Body, File, Depends, HTTPException, Form
 from dotenv import load_dotenv
+import uvicorn
 import os
 import time
 from  pinecone import Pinecone as PineconeMake
@@ -27,8 +28,8 @@ load_dotenv()
 app = FastAPI()
 #Global Variables
 embed_model = OpenAIEmbeddings(model="text-embedding-3-small")
-index_name  = "dependsDB"
-vector_storage = VectorStorage(index_name)
+index_name  = "depends-db" #Must be lower case or '-' 
+vector_storage = VectorStorage(index_name,embed_model)
 chat = ChatOpenAI(
     openai_api_key=os.environ["OPENAI_API_KEY"],
     model='gpt-4o-mini-2024-07-18'
@@ -130,3 +131,5 @@ def similarDocs(query: str) -> str:
     source_knowledge = "\n------------------------------------------".join([res.page_content for res in results])
     return source_knowledge
 
+# if __name__ == "__main__":
+#     uvicorn.run(app, host="0.0.0.0", port=8000)

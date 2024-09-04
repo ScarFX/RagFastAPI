@@ -27,10 +27,10 @@ class VectorStorage:
     
     async def aadd_documents(self, docBatch: list[Document]):
          uuids = [str(uuid4()) for _ in range(len(docBatch))]
-         await self.vectorDB.vector_store.aadd_documents(docBatch, uuids)
+         await self.vectorDB.vector_store.aadd_documents(docBatch, ids=uuids)
     
     def similarity_search(self,query:str, k:int):
-        return self.vectorDB.similarity_search(query,k)
+        return self.vectorDB.vector_store.similarity_search(query,k)
 
 class ChromaDB:
     def __init__(self, index_name: str, embed_model: OpenAIEmbeddings):
