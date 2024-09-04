@@ -16,21 +16,16 @@ import json
 from pydantic import BaseModel, Field
 import asyncio
 from datetime import datetime
+from langchain_chroma import Chroma
+import chromadb
 from typing import Any,Dict, List
-
-class MetaType(BaseModel):
-    metadata: Dict[str,Any] = Field(...)
 
 
 load_dotenv() 
 #uvicorn main:app --reload
 app = FastAPI()
 #Global Variables
-pc = PineconeMake(os.getenv("PINECONE_API_KEY"))
-index_name = 'rag-fast-api' #Name Vector Space
-spec = ServerlessSpec(
-    cloud="aws", region="us-east-1"
-)
+persistent_client = chromadb.PersistentClient()
 embed_model = OpenAIEmbeddings(model="text-embedding-3-small")
 chat = ChatOpenAI(
     openai_api_key=os.environ["OPENAI_API_KEY"],
@@ -75,34 +70,19 @@ async def upload_file(files: List[UploadFile] = (File(...)), metaJson: str= Form
     return {"filename": file.filename, "message": "File/s uploaded successfully"}
 
 async def embedStore(txt: str, metaData ) -> None: 
-    existing_indexes = [
-    index_info["name"] for index_info in pc.list_indexes()
-
-]   
-    if index_name not in existing_indexes:
-        # if does not exist, create index
-
-        pc.create_index(
-            index_name,
-            dimension=1536,  # dimensionality of ada 002
-            metric='cosine',
-            spec=spec
-        )
-        # wait for index to be initialized
-        while not pc.describe_index(index_name).status['ready']:
-            time.sleep(1)
-    index = pc.Index(index_name)
-    time.sleep(1)
-    vector_store = PineconeVectorStore(index, embed_model)
     data = split_into_chunks(txt, 2048) # roughly 20ish lines of text 
     docData = [Document(
         page_content=doc,
         metadata=metaData
         ) for doc in data]
-    # metadata = [{'text': chunk} for chunk in data ] #integers not string chunk
+    vector_store = Chroma(
+    client=persistent_client,
+    collection_name="rag_vectors",
+    embedding_function=embed_model
+    )
     await process_documents(docData, vector_store)
 
-async def process_documents(docData: list[Document], vector_store: PineconeVectorStore,
+async def process_documents(docData: list[Document], vector_store: Chroma,
                              batch_size: int = 20, concurrent_max: int = 10):
     semaphore = asyncio.Semaphore(concurrent_max)
     tasks = [] 
@@ -113,7 +93,7 @@ async def process_documents(docData: list[Document], vector_store: PineconeVecto
     await asyncio.gather(*tasks)
 
         
-async def process_batch(batch: list[Document], vector_store: PineconeVectorStore, semaphore):
+async def process_batch(batch: list[Document], vector_store: Chroma, semaphore):
     uuids = [str(uuid4()) for _ in range(len(batch))]
     async with semaphore: 
         #tStart = datetime.now().time()
@@ -145,9 +125,12 @@ def split_into_chunks(text: str, max_tokens: int) -> list[str]:
     return chunks
 
 def similarDocs(query: str) -> str:
-    index = pc.Index(index_name)
-    vector_store = PineconeVectorStore(index, embed_model)
-    results =  vector_store.similarity_search(query, k=1)
+    vector_store = Chroma(
+    client=persistent_client,
+    collection_name="rag_vectors",
+    embedding_function=embed_model
+    )
+    results =  vector_store.similarity_search(query, k=2)
     # # get the text from the results
     # # feed into an augmented prompt
     # augmented_prompt = f"""Using the contexts below, answer the query.
@@ -156,6 +139,6 @@ def similarDocs(query: str) -> str:
     # {source_knowledge}
 
     # Query: {query}"""
-    source_knowledge = "\n".join([res.page_content for res in results])
+    source_knowledge = "\n------------------------------------------".join([res.page_content for res in results])
     return source_knowledge
 
