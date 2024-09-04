@@ -19,14 +19,16 @@ from datetime import datetime
 from langchain_chroma import Chroma
 import chromadb
 from typing import Any,Dict, List
+from storage import VectorStorage
 
 
 load_dotenv() 
 #uvicorn main:app --reload
 app = FastAPI()
 #Global Variables
-persistent_client = chromadb.PersistentClient()
 embed_model = OpenAIEmbeddings(model="text-embedding-3-small")
+index_name  = "dependsDB"
+vector_storage = VectorStorage(index_name)
 chat = ChatOpenAI(
     openai_api_key=os.environ["OPENAI_API_KEY"],
     model='gpt-4o-mini-2024-07-18'
@@ -75,31 +77,22 @@ async def embedStore(txt: str, metaData ) -> None:
         page_content=doc,
         metadata=metaData
         ) for doc in data]
-    vector_store = Chroma(
-    client=persistent_client,
-    collection_name="rag_vectors",
-    embedding_function=embed_model
-    )
-    await process_documents(docData, vector_store)
+    await process_documents(docData)
 
-async def process_documents(docData: list[Document], vector_store: Chroma,
+async def process_documents(docData: list[Document],
                              batch_size: int = 20, concurrent_max: int = 10):
     semaphore = asyncio.Semaphore(concurrent_max)
     tasks = [] 
     for i in range(0, len(docData), batch_size):
         batch = docData[i: min(i+batch_size, len(docData))]
-        task = asyncio.create_task(process_batch(batch, vector_store, semaphore))
+        task = asyncio.create_task(process_batch(batch, semaphore))
         tasks.append(task)
     await asyncio.gather(*tasks)
 
         
-async def process_batch(batch: list[Document], vector_store: Chroma, semaphore):
-    uuids = [str(uuid4()) for _ in range(len(batch))]
+async def process_batch(batch: list[Document], semaphore):
     async with semaphore: 
-        #tStart = datetime.now().time()
-        await vector_store.aadd_documents(batch, ids=uuids)
-    #tFinish = datetime.now().time()
-    #print(f'Batch embeddings started at {tStart} and finished at {tFinish}\n')
+        await vector_storage.aadd_documents(batch) #Call to wrapper method
 
 def split_into_chunks(text: str, max_tokens: int) -> list[str]:
     words = text.split()
@@ -125,12 +118,7 @@ def split_into_chunks(text: str, max_tokens: int) -> list[str]:
     return chunks
 
 def similarDocs(query: str) -> str:
-    vector_store = Chroma(
-    client=persistent_client,
-    collection_name="rag_vectors",
-    embedding_function=embed_model
-    )
-    results =  vector_store.similarity_search(query, k=2)
+    results =  vector_storage.similarity_search(query, k=2) #wrapper method
     # # get the text from the results
     # # feed into an augmented prompt
     # augmented_prompt = f"""Using the contexts below, answer the query.
