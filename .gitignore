@@ -4,3 +4,4 @@ launch.json
 __pycache__
 chroma_langchain_db
 chroma
+uploads/.
