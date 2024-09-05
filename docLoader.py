@@ -27,7 +27,7 @@ async def load_file(filename:str,filepath:Path,metadata:dict):
     match file_ext: 
         case "txt":
             loader = TextLoader(filepath, autodetect_encoding=True)
-            wholeDoc = loader.aload()
+            wholeDoc = loader.load()
             docs = splitter.split_documents(wholeDoc)
 
         case "csv":

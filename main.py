@@ -20,7 +20,7 @@ import asyncio
 from datetime import datetime
 from langchain_chroma import Chroma
 import chromadb
-from typing import Any,Dict, List, Optional
+from typing import Annotated, Any,Dict, List, Optional
 from storage import VectorStorage
 from docLoader import *
 import shutil
@@ -39,6 +39,9 @@ chat = ChatOpenAI(
     model='gpt-4o-mini-2024-07-18'
 )
 
+class MetaFile(BaseModel):
+    file_id: str 
+    metaJson: dict | None = None 
 
 @app.get("/")
 async def root() -> dict[str,str]:
@@ -57,11 +60,22 @@ async def getContext(query: str = Query(..., description="The query to process t
 
 #ADD: upload multiple documents, more than text files 
 @app.post("/documents") 
-async def upload_file(files: List[UploadFile] = (File(...)), metaJson: str= Form(...)) -> dict[str,str] :
-    try:
-        metadata: Dict[str, Any] = json.loads(metaJson)
-    except json.JSONDecodeError:
-        return {"error":"Invalid JSON"}
+# async def upload_file(files: Annotated[List[UploadFile], File(...)], metafile:MetaFile) -> dict[str,str] :
+#     metadata: dict[str, Any] = {"file_id": metafile.file_id}
+async def upload_file(
+    files: List[UploadFile] = File(...),
+    file_id: str | None = Form(...),
+    vector_store_id: str | None = Form(None),
+    metaJson: str | None= Form(None)
+) -> dict[str, str]:
+    metaData = {"file_id": file_id}
+    if vector_store_id is not None:
+        metaData["vector_store_id"] = vector_store_id
+    if metaJson is not None :
+        try:
+           metaData.update((json.loads(metaJson)))
+        except json.JSONDecodeError:
+            return {"error":"Invalid JSON"}
     tasks = []
     docData = []
     allowed_types = {
@@ -77,7 +91,7 @@ async def upload_file(files: List[UploadFile] = (File(...)), metaJson: str= Form
         with file_location.open('wb') as buffer:
             shutil.copyfileobj(file.file, buffer)
         #load_file() is async 
-        docData.extend(await load_file(file.filename,file_location,metadata)) 
+        docData.extend(await load_file(file.filename,file_location,metaData)) 
         task = asyncio.create_task(process_documents(docData))
         tasks.append(task)
     await asyncio.gather(*tasks)  
@@ -85,14 +99,22 @@ async def upload_file(files: List[UploadFile] = (File(...)), metaJson: str= Form
 
 #Upload a url
 @app.post("/links")
-async def upload_url(url:str = Form(...,description="link to pull data from"), metaJson: str = Form(...)):
-    try:
-        metadata: Dict[str, Any] = json.loads(metaJson)
-    except json.JSONDecodeError:
-        return {"error":"Invalid JSON"}
-    docData = await load_link(url)
+async def upload_url(url: Annotated[str,Form(...,description="link to pull data from")],
+                     vector_store_id: Annotated[str | None, Form(description="Insert string vector id optional")] = None, 
+                     metaJson: Annotated[str | None, Form(description="Insert JSON metadata opptional")] = None
+                     ) -> dict[str,str]:
+    metaData = {"file_id": file_id}
+    if vector_store_id is not None:
+        metaData["vector_store_id"] = vector_store_id
+    if metaJson is not None :
+        try:
+           metaData.update((json.loads(metaJson)))
+        except json.JSONDecodeError:
+            return {"error":"Invalid JSON"}
+    docData = await load_link(url, metaData)
     await process_documents(docData)
     return {"URL: ": url, "message": "Link successfully uplaoded "}
+
 async def process_documents(docData: list[Document],
                              batch_size: int = 20, concurrent_max: int = 10):
     semaphore = asyncio.Semaphore(concurrent_max)
