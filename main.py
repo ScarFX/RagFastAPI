@@ -205,7 +205,7 @@ async def upload_url(url: Annotated[str,Form(...,description="Link to pull data 
 #Upload a url
 @app.post("/links")
 async def upload_urls(url_list: Annotated[List[str],Form(...,description="Links to pull data from")],
-                     file_ids: Annotated[List[str | None], Form(description="One id for each file uploaded")] = "",
+                     file_ids: Annotated[List[str | None], Form(description="One id for each file uploaded")] = [],
                      vector_store_id: Annotated[str | None, Form(description="Insert string vector id optional")] = "", 
                      metaJson: Annotated[str | None, Form(description="Insert JSON metadata opptional")] = ""
                      ) -> dict[str,str]:
