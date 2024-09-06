@@ -97,18 +97,19 @@ async def getContext(query: str = Query(..., description="The query to process t
 @app.post("/document") 
 async def upload_file(
     file: Annotated[UploadFile, File(..., description="File to upload")],
-    file_id: Annotated[str | None, Form(description="File id")] = None,
-    vector_store_id: Annotated[str | None, Form()] = None ,
-    metaJson: Annotated[str| None, Form()] = None 
+    file_id: Annotated[str | None, Form(description="File id")] = "",
+    vector_store_id: Annotated[str | None, Form()] = "",
+    metaJson: Annotated[str| None, Form()] = "" 
 ) -> dict[str, str]:
     metaData = {}
-    if vector_store_id is not None:
+    if vector_store_id:
         metaData["vector_store_id"] = vector_store_id
-    if metaJson is not None :
+    if metaJson:
         try:
-           metaData.update((json.loads(metaJson)))
+            metaData.update(json.loads(metaJson))
         except json.JSONDecodeError:
-            return {"error":"Invalid JSON"}
+            return {"error": "Invalid JSON"}
+
     tasks = []
     docData = []
     allowed_types = {
@@ -132,9 +133,9 @@ async def upload_file(
 @app.post("/documents")
 async def upload_files(
     files: Annotated[List[UploadFile], File(...)],
-    file_ids: Annotated[List[str], Form()] = None,
-    vector_store_id: Annotated[str | None, Form()] = None,
-    metaJson: Annotated[str | None, Form()] = None 
+    file_ids: Annotated[List[str], Form()] = [],
+    vector_store_id: Annotated[str | None, Form()] = "",
+    metaJson: Annotated[str | None, Form()] = "" 
 ) -> dict[str, str]:
     strict_requirement = get_file_id_requirement()
     
