@@ -1,4 +1,3 @@
-from sys import exception
 from langchain_community.document_loaders import (
     WebBaseLoader,
     TextLoader,
