@@ -6,3 +6,6 @@ chroma_langchain_db
 chroma
 uploads/.
 pgvector.py
+./uploads
+.git
+.idea
