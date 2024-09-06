@@ -186,14 +186,14 @@ async def upload_files(
 #Upload a url
 @app.post("/link")
 async def upload_url(url: Annotated[str,Form(...,description="Link to pull data from")],
-                     file_id: Annotated[str | None, Form( description="File id")] = None,
-                     vector_store_id: Annotated[str | None, Form(description="Insert string vector id optional")] = None, 
-                     metaJson: Annotated[str | None, Form(description="Insert JSON metadata opptional")] = None
+                     file_id: Annotated[str | None, Form( description="File id")] = "",
+                     vector_store_id: Annotated[str | None, Form(description="Insert string vector id optional")] = "", 
+                     metaJson: Annotated[str | None, Form(description="Insert JSON metadata opptional")] = ""
                      ) -> dict[str,str]:
     metaData = {}
     if vector_store_id is not None:
         metaData["vector_store_id"] = vector_store_id
-    if metaJson is not None :
+    if metaJson:
         try:
            metaData.update((json.loads(metaJson)))
         except json.JSONDecodeError:
@@ -205,9 +205,9 @@ async def upload_url(url: Annotated[str,Form(...,description="Link to pull data 
 #Upload a url
 @app.post("/links")
 async def upload_urls(url_list: Annotated[List[str],Form(...,description="Links to pull data from")],
-                     file_ids: Annotated[List[str | None], Form(description="One id for each file uploaded")] = None,
-                     vector_store_id: Annotated[str | None, Form(description="Insert string vector id optional")] = None, 
-                     metaJson: Annotated[str | None, Form(description="Insert JSON metadata opptional")] = None
+                     file_ids: Annotated[List[str | None], Form(description="One id for each file uploaded")] = "",
+                     vector_store_id: Annotated[str | None, Form(description="Insert string vector id optional")] = "", 
+                     metaJson: Annotated[str | None, Form(description="Insert JSON metadata opptional")] = ""
                      ) -> dict[str,str]:
     metaData = {}
     url_list = url_list.split(',')
@@ -215,7 +215,7 @@ async def upload_urls(url_list: Annotated[List[str],Form(...,description="Links 
         metaData["file_id"] = vector_store_id
     if vector_store_id is not None:
         metaData["vector_store_id"] = vector_store_id
-    if metaJson is not None :
+    if metaJson:
         try:
            metaData.update((json.loads(metaJson)))
         except json.JSONDecodeError:
