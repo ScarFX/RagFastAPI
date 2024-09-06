@@ -47,6 +47,7 @@ class VectorStorage:
                         batch = self.vectorDB.vector_store.similarity_search(
                             query, k=k,filter=filter)
                         documents.extend(batch)
+
          return documents
 
 

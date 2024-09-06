@@ -184,7 +184,9 @@ async def upload_urls(url_list: Annotated[List[str],Form(...,description="Links 
     metaData = {}
     url_list = url_list.split(',')
     if file_ids is not None:
-        metaData["file_id"] = vector_store_id
+        file_ids = file_ids.split(",")
+    if (file_ids is not None) and (len(file_ids) != len(url_list)):
+        raise HTTPException(status_code=400, detail=f"Unequal size between file_ids inputed: {len(file_ids)} and number of files: {len(url_list)}")
     if vector_store_id is not None:
         metaData["vector_store_id"] = vector_store_id
     if metaJson is not None :
