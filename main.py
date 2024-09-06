@@ -77,16 +77,16 @@ async def sendAI(query: str = Query(...,description="User questions for LLM")) -
 @app.get("/rag/")
 async def getContext(query: str = Query(..., description="The query to process the uploaded documents"),
                      k: Annotated[int, Query(description="Number of documents to return")]=5,
-                     filterJson: Annotated[ str  | None, Query(description="Json of metadata to search for")] = None,
-                     file_ids: Annotated[List[str]| None, Query(description="file_id to search for")] = None
+                     filterJson: Annotated[ str  | None, Query(description="Json of metadata to search for")] = "",
+                     file_ids: Annotated[List[str]| None, Query(description="file_id to search for")] = []
                      ) -> dict[str,str]:
     filter = {} 
-    if filterJson is not None :
+    if filterJson :
         try:
             filter.update((json.loads(filterJson)))
         except json.JSONDecodeError:
             return {"error":"Invalid JSON"}
-    if filterJson is None and file_ids is None: #No filter and file_id
+    if not filterJson and not file_ids: #No filter and file_id
         context = await similarDocs(query, k)
     else:
         context = await similarDocs(query,k,filter,file_ids )
@@ -146,9 +146,9 @@ async def upload_files(
         )
 
     metaData = {}
-    if vector_store_id is not None:
+    if vector_store_id:
         metaData["vector_store_id"] = vector_store_id
-    if metaJson is not None:
+    if metaJson:
         try:
             # Check if metaJson is already a dictionary
             if isinstance(metaJson, dict):
@@ -191,7 +191,7 @@ async def upload_url(url: Annotated[str,Form(...,description="Link to pull data 
                      metaJson: Annotated[str | None, Form(description="Insert JSON metadata opptional")] = ""
                      ) -> dict[str,str]:
     metaData = {}
-    if vector_store_id is not None:
+    if vector_store_id:
         metaData["vector_store_id"] = vector_store_id
     if metaJson:
         try:
@@ -205,17 +205,17 @@ async def upload_url(url: Annotated[str,Form(...,description="Link to pull data 
 #Upload a url
 @app.post("/links")
 async def upload_urls(url_list: Annotated[List[str],Form(...,description="Links to pull data from")],
-                     file_ids: Annotated[List[str | None], Form(description="One id for each file uploaded")] = "",
+                     file_ids: Annotated[List[str | None], Form(description="One id for each file uploaded")] = [],
                      vector_store_id: Annotated[str | None, Form(description="Insert string vector id optional")] = "", 
                      metaJson: Annotated[str | None, Form(description="Insert JSON metadata opptional")] = ""
                      ) -> dict[str,str]:
     metaData = {}
-    url_list = url_list.split(',')
-    if file_ids is not None:
-        file_ids = file_ids.split(",")
-    if (file_ids is not None) and (len(file_ids) != len(url_list)):
+    url_list = url_list[0].split(',')
+    if file_ids[0] != '':
+        file_ids = file_ids[0].split(",")
+    if file_ids[0] != '' and (len(file_ids) != len(url_list)):
         raise HTTPException(status_code=400, detail=f"Unequal size between file_ids inputed: {len(file_ids)} and number of files: {len(url_list)}")
-    if vector_store_id is not None:
+    if vector_store_id:
         metaData["vector_store_id"] = vector_store_id
     if metaJson:
         try:
@@ -223,11 +223,14 @@ async def upload_urls(url_list: Annotated[List[str],Form(...,description="Links 
         except json.JSONDecodeError:
             return {"error":"Invalid JSON"}
     tasks = []
-    for i in range(url_list):
-        docData = await load_link(url_list[i], metaData, file_ids[i])
+    for i in range(len(url_list)):
+        if file_ids[0] != '':
+            docData = await load_link(url_list[i], metaData, file_ids[i])
+        else:
+            docData = await load_link(url_list[i], metaData)
         task =  asyncio.create_task(process_documents(docData))
         tasks.append(task)
-    await asyncio.gather(tasks)
+    await asyncio.gather(*tasks)
     return {"URL: ": "MULTIPLE LINKS", "message": "Link successfully uplaoded "}
 
 async def process_documents(docData: list[Document],
@@ -247,7 +250,7 @@ async def process_batch(batch: list[Document], semaphore):
 
 
 async def similarDocs(query: str, k:int = 5,  filter: dict[str,str] = None, file_ids: list[str] = None) -> str:
-    if filter is not None or file_ids is not None: 
+    if filter or file_ids: 
         results = await vector_storage.similarity_searchFilter(query,k,filter,file_ids)
     else:
         results =  vector_storage.similarity_search(query,k) #wrapper method

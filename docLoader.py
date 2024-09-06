@@ -4,12 +4,6 @@ from langchain_community.document_loaders import (
     PyPDFLoader,
     CSVLoader,
     Docx2txtLoader,
-    UnstructuredEPubLoader,
-    UnstructuredMarkdownLoader,
-    UnstructuredXMLLoader,
-    UnstructuredRSTLoader,
-    UnstructuredExcelLoader,
-    UnstructuredPowerPointLoader,
     YoutubeLoader
 )
 from pathlib import Path
@@ -44,7 +38,7 @@ async def load_file(filename:str,filepath:Path,metadata:dict, file_id:str = None
             raise TypeError(f'The file extension {file_ext} is not supported')
     for doc in docs:
         doc.metadata = doc.metadata | metadata
-        if file_id is not None:
+        if file_id:
                 doc.metadata["file_id"] = file_id
     return docs
 
@@ -66,10 +60,10 @@ async def load_link(url:str, metadata:dict = None, file_id:str = None):
             loader = WebBaseLoader(url)
             wholeDoc = loader.load()
             docs = splitter.split_documents(wholeDoc)
-    if metadata is not None:
+    if metadata:
         for doc in docs:
             doc.metadata = doc.metadata | metadata 
-            if file_id is not None:
+            if file_id:
                 doc.metadata["file_id"] = file_id
     return docs
     
