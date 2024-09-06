@@ -57,10 +57,16 @@ async def sendAI(query: str = Query(...,description="User questions for LLM")) -
 @app.get("/rag/")
 async def getContext(query: str = Query(..., description="The query to process the uploaded documents"),
                      k: Annotated[int, Query(description="Number of documents to return")]=5,
-                     filter: Annotated[str | None, Query(description="Json of metadata to search for")] = None,
+                     filterJson: Annotated[ str  | None, Query(description="Json of metadata to search for")] = None,
                      file_ids: Annotated[List[str]| None, Query(description="file_id to search for")] = None
                      ) -> dict[str,str]:
-    if filter is None and file_ids is None: #No filter and file_id
+    filter = {} 
+    if filterJson is not None :
+        try:
+            filter.update((json.loads(filterJson)))
+        except json.JSONDecodeError:
+            return {"error":"Invalid JSON"}
+    if filterJson is None and file_ids is None: #No filter and file_id
         context = await similarDocs(query, k)
     else:
         context = await similarDocs(query,k,filter,file_ids )

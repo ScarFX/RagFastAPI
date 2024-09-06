@@ -37,13 +37,17 @@ class VectorStorage:
         
     async def similarity_searchFilter(self,query:str, k:int, filter:dict[str,str], file_ids:list[str]):
          if isinstance(self.vectorDB.vector_store, PGVecto_rs):
-            if filter is not None:
-                documents = self.vectorDB.vector_store.similarity_search(
+                documents = []
+                if file_ids is None or len(file_ids) == 0:
+                     documents= self.vectorDB.vector_store.similarity_search(
                         query, k=k,filter=filter)
-            else:
-                documents = self.vectorDB.vector_store.similarity_search(
-                        query, k=k,filter={"file_id": {"$in": file_ids}})
-            return documents
+                else:
+                    for file_id in file_ids:
+                        filter["file_id"] = file_id
+                        batch = self.vectorDB.vector_store.similarity_search(
+                            query, k=k,filter=filter)
+                        documents.extend(batch)
+         return documents
 
 
 #         return self.vectorDB.vector_store.similarity_search(
