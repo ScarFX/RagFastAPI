@@ -1,6 +1,7 @@
 from multiprocessing import process
 from fastapi import FastAPI, UploadFile,Query,Path, Body, File, Depends, HTTPException, Form
 from dotenv import load_dotenv
+from traitlets import default
 import uvicorn
 import os
 import time
@@ -54,21 +55,27 @@ async def sendAI(query: str = Query(...,description="User questions for LLM")) -
     return {"AI Response": res.content}
 
 @app.get("/rag/")
-async def getContext(query: str = Query(..., description="The query to process the uploaded documents")) -> dict[str,str]:
-    context = similarDocs(query)
+async def getContext(query: str = Query(..., description="The query to process the uploaded documents"),
+                     k: Annotated[int, Query(description="Number of documents to return")]=5,
+                     filter: Annotated[str | None, Query(description="Json of metadata to search for")] = None,
+                     file_ids: Annotated[List[str]| None, Query(description="file_id to search for")] = None
+                     ) -> dict[str,str]:
+    if filter is None and file_ids is None: #No filter and file_id
+        context = await similarDocs(query, k)
+    else:
+        context = await similarDocs(query,k,filter,file_ids )
+
     return {"Context": context}
 
 #ADD: upload multiple documents, more than text files 
-@app.post("/documents") 
-# async def upload_file(files: Annotated[List[UploadFile], File(...)], metafile:MetaFile) -> dict[str,str] :
-#     metadata: dict[str, Any] = {"file_id": metafile.file_id}
+@app.post("/document") 
 async def upload_file(
-    files: List[UploadFile] = File(...),
-    file_id: str | None = Form(...),
-    vector_store_id: str | None = Form(None),
-    metaJson: str | None= Form(None)
+    file: Annotated[UploadFile, File(..., description="File to upload")],
+    file_id: Annotated[str | None, Form(description="File id")] = None,
+    vector_store_id: Annotated[str | None, Form()] = None ,
+    metaJson: Annotated[str| None, Form()] = None 
 ) -> dict[str, str]:
-    metaData = {"file_id": file_id}
+    metaData = {}
     if vector_store_id is not None:
         metaData["vector_store_id"] = vector_store_id
     if metaJson is not None :
@@ -84,26 +91,72 @@ async def upload_file(
         'application/pdf',
         'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
         }
-    for file in files:
-        if file.content_type not in allowed_types : #check type
-            raise HTTPException(status_code=400, detail=f"{file.content_type} is an Invalid file type")
-        file_location = Path("uploads") / file.filename #write location
-        with file_location.open('wb') as buffer:
-            shutil.copyfileobj(file.file, buffer)
-        #load_file() is async 
-        docData.extend(await load_file(file.filename,file_location,metaData)) 
-        task = asyncio.create_task(process_documents(docData))
-        tasks.append(task)
+    if file.content_type not in allowed_types : #check type
+        raise HTTPException(status_code=400, detail=f"{file.content_type} is an Invalid file type")
+    file_location = Path("uploads") / file.filename #write location
+    with file_location.open('wb') as buffer:
+        shutil.copyfileobj(file.file, buffer)
+    #load_file() is async 
+    docData.extend(await load_file(file.filename,file_location,metaData,file_id)) 
+    task = asyncio.create_task(process_documents(docData))
+    tasks.append(task)
     await asyncio.gather(*tasks)  
     return {"filename": file.filename, "message": "File/s written successfully"}
 
+@app.post("/documents")
+async def upload_files(
+    files: Annotated[List[UploadFile], File(..., description="List of files to upload")],
+    file_ids: Annotated[List[str | None], Form( description="One id for each file uploaded")] = None,
+    vector_store_id: Annotated[str | None, Form()] = None ,
+    metaJson: Annotated[str| None, Form()] = None 
+) -> dict[str, str]:
+    if len(file_ids[0]) == 0:
+        file_ids = None
+    else:
+        file_ids = file_ids[0].split(',')
+    #check if file_id list right size 
+    if (file_ids is not None) and (len(file_ids) != len(files)):
+        raise HTTPException(status_code=400, detail=f"Unequal size between file_ids inputed: {len(file_ids)} and number of files: {len(files)}")
+    metaData = {}
+    if vector_store_id is not None:
+        metaData["vector_store_id"] = vector_store_id
+    if metaJson is not None :
+        try:
+           metaData.update((json.loads(metaJson)))
+        except json.JSONDecodeError:
+            raise HTTPException(status_code=400, detail=f"JSONDecodeError with input:{metaJson}")
+    tasks = []
+    allowed_types = {
+        'text/csv',
+        'text/plain',
+        'application/pdf',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+        }
+    for i in range(len(files)):
+        if files[i].content_type not in allowed_types : #check type
+            raise HTTPException(status_code=400, detail=f"{files[i].content_type} is an Invalid files[i] type")
+        file_location = Path("uploads") / files[i].filename #write location
+        with file_location.open('wb') as buffer:
+            shutil.copyfileobj(files[i].file, buffer)
+        #load_file() is async 
+        if file_ids is not None: 
+            cur_docs = await load_file(files[i].filename,file_location,metaData, file_ids[i])
+        else:
+            cur_docs = await load_file(files[i].filename,file_location,metaData, None)
+        task = asyncio.create_task(process_documents(cur_docs))
+        tasks.append(task)
+    await asyncio.gather(*tasks)  
+    return {"filename": "MULTIPLE FILES", "message": "File/s written successfully"}
+
+
 #Upload a url
-@app.post("/links")
-async def upload_url(url: Annotated[str,Form(...,description="link to pull data from")],
+@app.post("/link")
+async def upload_url(url: Annotated[str,Form(...,description="Link to pull data from")],
+                     file_id: Annotated[str | None, Form( description="File id")] = None,
                      vector_store_id: Annotated[str | None, Form(description="Insert string vector id optional")] = None, 
                      metaJson: Annotated[str | None, Form(description="Insert JSON metadata opptional")] = None
                      ) -> dict[str,str]:
-    metaData = {"file_id": file_id}
+    metaData = {}
     if vector_store_id is not None:
         metaData["vector_store_id"] = vector_store_id
     if metaJson is not None :
@@ -111,9 +164,35 @@ async def upload_url(url: Annotated[str,Form(...,description="link to pull data 
            metaData.update((json.loads(metaJson)))
         except json.JSONDecodeError:
             return {"error":"Invalid JSON"}
-    docData = await load_link(url, metaData)
+    docData = await load_link(url, metaData, file_id) #Okay if file_id is None
     await process_documents(docData)
     return {"URL: ": url, "message": "Link successfully uplaoded "}
+
+#Upload a url
+@app.post("/links")
+async def upload_urls(url_list: Annotated[List[str],Form(...,description="Links to pull data from")],
+                     file_ids: Annotated[List[str | None], Form(description="One id for each file uploaded")] = None,
+                     vector_store_id: Annotated[str | None, Form(description="Insert string vector id optional")] = None, 
+                     metaJson: Annotated[str | None, Form(description="Insert JSON metadata opptional")] = None
+                     ) -> dict[str,str]:
+    metaData = {}
+    url_list = url_list.split(',')
+    if file_ids is not None:
+        metaData["file_id"] = vector_store_id
+    if vector_store_id is not None:
+        metaData["vector_store_id"] = vector_store_id
+    if metaJson is not None :
+        try:
+           metaData.update((json.loads(metaJson)))
+        except json.JSONDecodeError:
+            return {"error":"Invalid JSON"}
+    tasks = []
+    for i in range(url_list):
+        docData = await load_link(url_list[i], metaData, file_ids[i])
+        task =  asyncio.create_task(process_documents(docData))
+        tasks.append(task)
+    await asyncio.gather(tasks)
+    return {"URL: ": "MULTIPLE LINKS", "message": "Link successfully uplaoded "}
 
 async def process_documents(docData: list[Document],
                              batch_size: int = 20, concurrent_max: int = 10):
@@ -131,8 +210,11 @@ async def process_batch(batch: list[Document], semaphore):
         await vector_storage.aadd_documents(batch) #Call to wrapper method
 
 
-def similarDocs(query: str) -> str:
-    results =  vector_storage.similarity_search(query, k=2) #wrapper method
+async def similarDocs(query: str, k:int = 5,  filter: dict[str,str] = None, file_ids: list[str] = None) -> str:
+    if filter is not None or file_ids is not None: 
+        results = await vector_storage.similarity_searchFilter(query,k,filter,file_ids)
+    else:
+        results =  vector_storage.similarity_search(query,k) #wrapper method
     # # get the text from the results
     # # feed into an augmented prompt
     # augmented_prompt = f"""Using the contexts below, answer the query.
@@ -143,6 +225,7 @@ def similarDocs(query: str) -> str:
     # Query: {query}"""
     source_knowledge = "\n------------------------------------------".join([res.page_content for res in results])
     return source_knowledge
+
 
 # if __name__ == "__main__":
 #     uvicorn.run(app, host="0.0.0.0", port=8000)

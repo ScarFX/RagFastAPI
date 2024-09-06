@@ -15,7 +15,7 @@ from langchain_community.document_loaders import (
 )
 from pathlib import Path
 from langchain_text_splitters import RecursiveCharacterTextSplitter
-async def load_file(filename:str,filepath:Path,metadata:dict):    
+async def load_file(filename:str,filepath:Path,metadata:dict, file_id:str = None):    
     file_ext = filename.split(".")[-1].lower()
     docs = [] 
     splitter = RecursiveCharacterTextSplitter(
@@ -44,10 +44,12 @@ async def load_file(filename:str,filepath:Path,metadata:dict):
         case _:
             raise TypeError(f'The file extension {file_ext} is not supported')
     for doc in docs:
-        doc.metadata = doc.metadata | metadata 
+        doc.metadata = doc.metadata | metadata
+        if file_id is not None:
+                doc.metadata["file_id"] = file_id
     return docs
 
-async def load_link(url:str, metadata:dict = None):
+async def load_link(url:str, metadata:dict = None, file_id:str = None):
     website = url.split(".")[1].lower()
     docs = []
     splitter = RecursiveCharacterTextSplitter(
@@ -68,5 +70,7 @@ async def load_link(url:str, metadata:dict = None):
     if metadata is not None:
         for doc in docs:
             doc.metadata = doc.metadata | metadata 
+            if file_id is not None:
+                doc.metadata["file_id"] = file_id
     return docs
     

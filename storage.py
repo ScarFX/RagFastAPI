@@ -6,6 +6,8 @@ from langchain_openai import OpenAIEmbeddings
 from langchain_core.documents import Document
 from dotenv import load_dotenv
 import os
+from langchain_community.vectorstores.pgvecto_rs import PGVecto_rs
+from pgvecto_rs.sdk.filters import meta_contains
 from langchain_pinecone import PineconeVectorStore
 from  pinecone import Pinecone as Pinecone
 from pinecone import ServerlessSpec
@@ -18,10 +20,11 @@ class VectorStorage:
         if dbModel == 'Pinecone':
             #Implement Pinecone
             self.vectorDB = PineconeDB(index_name, embed_model)
-            ...
         elif dbModel == 'Chroma':
             #Implement Chroma
             self.vectorDB = ChromaDB(index_name, embed_model)
+        elif dbModel == 'pgvecto_rs':
+            self.vectorDB = PGVectorDB(index_name, embed_model)
         else:
             raise Exception(f"The VECTOR_DB_MODEL environment variable: {dbModel} is not supported")
     
@@ -31,6 +34,21 @@ class VectorStorage:
     
     def similarity_search(self,query:str, k:int):
         return self.vectorDB.vector_store.similarity_search(query,k)
+        
+    async def similarity_searchFilter(self,query:str, k:int, filter:dict[str,str], file_ids:list[str]):
+         if isinstance(self.vectorDB.vector_store, PGVecto_rs):
+            if filter is not None:
+                documents = self.vectorDB.vector_store.similarity_search(
+                        query, k=k,filter=filter)
+            else:
+                documents = self.vectorDB.vector_store.similarity_search(
+                        query, k=k,filter={"file_id": {"$in": file_ids}})
+            return documents
+
+
+#         return self.vectorDB.vector_store.similarity_search(
+#     query, k=k, filter=meta_contains(filter)
+# )
 
 class ChromaDB:
     def __init__(self, index_name: str, embed_model: OpenAIEmbeddings):
@@ -40,6 +58,28 @@ class ChromaDB:
         collection_name=index_name,
         embedding_function=embed_model
     )
+class PGVectorDB:
+    def __init__(self, index_name: str, embed_model: OpenAIEmbeddings):
+        PORT = os.getenv("DB_PORT", 5432)
+        HOST = os.getenv("DB_HOST", "localhost")
+        USER = os.getenv("DB_USER", "postgres")
+        PASS = os.getenv("DB_PASS", "mysecretpassword")
+        DB_NAME = os.getenv("DB_NAME", "postgres")
+
+        URL = "postgresql+psycopg://{username}:{password}@{host}:{port}/{db_name}".format(
+            port=PORT,
+            host=HOST,
+            username=USER,
+            password=PASS,
+            db_name=DB_NAME,
+        )
+
+        self.vector_store= PGVecto_rs.from_collection_name(
+            embedding=embed_model,
+            db_url=URL,
+            collection_name=index_name,
+        )
+        
 
 class PineconeDB:
     def __init__(self, index_name: str, embed_model: OpenAIEmbeddings):
