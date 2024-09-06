@@ -1,11 +1,11 @@
 from multiprocessing import process
-from fastapi import FastAPI, UploadFile,Query,Path, Body, File, Depends, HTTPException, Form
+from fastapi import FastAPI, UploadFile, Query, Path, Body, File, Depends, HTTPException, Form
 from dotenv import load_dotenv
 from traitlets import default
 import uvicorn
 import os
 import time
-from  pinecone import Pinecone as PineconeMake
+from pinecone import Pinecone as PineconeMake
 from tqdm.auto import tqdm
 from langchain_pinecone import PineconeVectorStore
 from pinecone import ServerlessSpec
@@ -13,7 +13,7 @@ from langchain_openai import ChatOpenAI
 from langchain_openai import OpenAIEmbeddings
 from langchain_core.documents import Document
 from langchain.schema import (
-    HumanMessage,SystemMessage,AIMessage)
+    HumanMessage, SystemMessage, AIMessage)
 from uuid import uuid4
 import json
 from pydantic import BaseModel, Field
@@ -21,28 +21,48 @@ import asyncio
 from datetime import datetime
 from langchain_chroma import Chroma
 import chromadb
-from typing import Annotated, Any,Dict, List, Optional
+from typing import Annotated, Any, Dict, List, Optional
 from storage import VectorStorage
 from docLoader import *
 import shutil
 from pathlib import Path
+from functools import lru_cache
 
-
-load_dotenv() 
-#uvicorn main:app --reload
+load_dotenv()
+# uvicorn main:app --reload
 app = FastAPI()
-#Global Variables
+
+# Global Variables
 embed_model = OpenAIEmbeddings(model="text-embedding-3-small")
-index_name  = "depends-db" #Must be lower case or '-' 
-vector_storage = VectorStorage(index_name,embed_model)
+index_name = "depends-db"  # Must be lower case or '-'
+vector_storage = VectorStorage(index_name, embed_model)
 chat = ChatOpenAI(
     openai_api_key=os.environ["OPENAI_API_KEY"],
     model='gpt-4o-mini-2024-07-18'
 )
 
 class MetaFile(BaseModel):
-    file_id: str 
-    metaJson: dict | None = None 
+    file_id: str
+    metaJson: dict | None = None
+
+# New function to get file_id requirement from environment
+@lru_cache()
+def get_file_id_requirement():
+    return os.getenv("STRICT_FILE_ID_REQUIREMENT", "false").lower() == "true"
+
+# New dependency for file_id validation
+def file_id_validator(
+    files: List[UploadFile],
+    file_ids: List[str] | None,
+    strict_requirement: bool = Depends(get_file_id_requirement)
+):
+    if strict_requirement:
+        if not file_ids or len(files) != len(file_ids):
+            raise HTTPException(
+                status_code=400,
+                detail=f"Strict mode: Number of file_ids ({len(file_ids) if file_ids else 0}) must match number of files ({len(files)})"
+            )
+    return file_ids if file_ids else [None] * len(files)
 
 @app.get("/")
 async def root() -> dict[str,str]:
@@ -111,49 +131,56 @@ async def upload_file(
 
 @app.post("/documents")
 async def upload_files(
-    files: Annotated[List[UploadFile], File(..., description="List of files to upload")],
-    file_ids: Annotated[List[str | None], Form( description="One id for each file uploaded")] = None,
-    vector_store_id: Annotated[str | None, Form()] = None ,
-    metaJson: Annotated[str| None, Form()] = None 
+    files: Annotated[List[UploadFile], File(...)],
+    file_ids: Annotated[List[str], Form()] = None,
+    vector_store_id: Annotated[str | None, Form()] = None,
+    metaJson: Annotated[str | None, Form()] = None 
 ) -> dict[str, str]:
-    if len(file_ids[0]) == 0:
-        file_ids = None
-    else:
-        file_ids = file_ids[0].split(',')
-    #check if file_id list right size 
-    if (file_ids is not None) and (len(file_ids) != len(files)):
-        raise HTTPException(status_code=400, detail=f"Unequal size between file_ids inputed: {len(file_ids)} and number of files: {len(files)}")
+    strict_requirement = get_file_id_requirement()
+    
+    if strict_requirement and (not file_ids or len(files) != len(file_ids)):
+        raise HTTPException(
+            status_code=400,
+            detail=f"Strict mode: Number of file_ids ({len(file_ids) if file_ids else 0}) must match number of files ({len(files)})"
+        )
+
     metaData = {}
     if vector_store_id is not None:
         metaData["vector_store_id"] = vector_store_id
-    if metaJson is not None :
+    if metaJson is not None:
         try:
-           metaData.update((json.loads(metaJson)))
+            # Check if metaJson is already a dictionary
+            if isinstance(metaJson, dict):
+                metaData.update(metaJson)
+            else:
+                metaData.update(json.loads(metaJson))
         except json.JSONDecodeError:
-            raise HTTPException(status_code=400, detail=f"JSONDecodeError with input:{metaJson}")
+            # If it's not valid JSON, just use it as a string
+            metaData["meta"] = metaJson
+
     tasks = []
     allowed_types = {
         'text/csv',
         'text/plain',
         'application/pdf',
         'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
-        }
-    for i in range(len(files)):
-        if files[i].content_type not in allowed_types : #check type
-            raise HTTPException(status_code=400, detail=f"{files[i].content_type} is an Invalid files[i] type")
-        file_location = Path("uploads") / files[i].filename #write location
+    }
+    
+    for i, file in enumerate(files):
+        if file.content_type not in allowed_types:
+            raise HTTPException(status_code=400, detail=f"{file.content_type} is an Invalid file type")
+        
+        file_location = Path("uploads") / file.filename
         with file_location.open('wb') as buffer:
-            shutil.copyfileobj(files[i].file, buffer)
-        #load_file() is async 
-        if file_ids is not None: 
-            cur_docs = await load_file(files[i].filename,file_location,metaData, file_ids[i])
-        else:
-            cur_docs = await load_file(files[i].filename,file_location,metaData, None)
+            shutil.copyfileobj(file.file, buffer)
+        
+        file_id = file_ids[i] if file_ids and i < len(file_ids) else None
+        cur_docs = await load_file(file.filename, file_location, metaData, file_id)
         task = asyncio.create_task(process_documents(cur_docs))
         tasks.append(task)
+    
     await asyncio.gather(*tasks)  
     return {"filename": "MULTIPLE FILES", "message": "File/s written successfully"}
-
 
 #Upload a url
 @app.post("/link")
