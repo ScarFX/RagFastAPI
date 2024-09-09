@@ -1,0 +1,47 @@
+2024-09-09 09:28:30,608 - fastapi_app - INFO - GET /docs - Status: 200 - Time: 0.00s
+2024-09-09 09:28:44,955 - fastapi_app - INFO - GET /openapi.json - Status: 200 - Time: 0.04s
+2024-09-09 09:28:53,444 - fastapi_app - INFO - Handling root request
+2024-09-09 09:28:53,446 - fastapi_app - INFO - GET / - Status: 200 - Time: 0.00s
+2024-09-09 09:57:13,426 - fastapi_app - INFO - Uploading file with filename: amazon.pdf with file_id: Ren and metadata: {"source":"Earnings report"}
+2024-09-09 09:59:21,254 - fastapi_app - INFO - Uploading file with filename: amazon.pdf with file_id: Ren and metadata: {"source":"Earnings report"}
+2024-09-09 09:59:28,892 - fastapi_app - INFO - Processing list of documents of length: 38
+2024-09-09 09:59:28,892 - fastapi_app - INFO - Sending batch 0 to 20 / 38
+2024-09-09 09:59:28,892 - fastapi_app - INFO - Sending batch 20 to 38 / 38
+2024-09-09 09:59:30,171 - fastapi_app - INFO - POST /document - Status: 200 - Time: 9.09s
+2024-09-09 10:02:43,033 - fastapi_app - INFO - Uploading list of links with metadata: 
+2024-09-09 10:02:43,034 - fastapi_app - INFO - Uploading link(0/2: https://www.desiringgod.org/interviews/the-pitfalls-of-being-a-thinker with file_id: FirstID metadata: 
+2024-09-09 10:02:48,930 - fastapi_app - INFO - Uploading link(1/2: https://www.desiringgod.org/interviews/teens-and-screens with file_id: 2ndID metadata: 
+2024-09-09 10:02:49,247 - fastapi_app - INFO - Processing list of documents of length: 15
+2024-09-09 10:02:49,247 - fastapi_app - INFO - Sending batch 0 to 15 / 15
+2024-09-09 10:02:49,247 - fastapi_app - INFO - Processing list of documents of length: 29
+2024-09-09 10:02:49,247 - fastapi_app - INFO - Sending batch 0 to 20 / 29
+2024-09-09 10:02:49,248 - fastapi_app - INFO - Sending batch 20 to 29 / 29
+2024-09-09 10:02:50,198 - fastapi_app - INFO - POST /links - Status: 200 - Time: 7.17s
+2024-09-09 10:04:14,144 - fastapi_app - INFO - Uploading list of links with metadata: 
+2024-09-09 10:04:14,144 - fastapi_app - INFO - Uploading link(2/2: https://www.desiringgod.org/interviews/the-pitfalls-of-being-a-thinker with file_id:  metadata: 
+2024-09-09 10:04:14,875 - fastapi_app - INFO - Processing list of documents of length: 15
+2024-09-09 10:04:14,876 - fastapi_app - INFO - Sending batch 0 to 15 / 15
+2024-09-09 10:07:44,493 - fastapi_app - INFO - Uploading multiple files with metadata: 
+2024-09-09 10:07:44,493 - fastapi_app - INFO - Uploading file in group of files (1/1) with filename: superbowl.txt 
+2024-09-09 10:07:44,498 - fastapi_app - INFO - Processing list of documents of length: 39
+2024-09-09 10:07:44,498 - fastapi_app - INFO - Sending batch 0 to 20 / 39
+2024-09-09 10:07:44,499 - fastapi_app - INFO - Sending batch 20 to 39 / 39
+2024-09-09 10:07:45,370 - fastapi_app - INFO - POST /documents - Status: 200 - Time: 0.95s
+2024-09-09 10:11:45,178 - fastapi_app - INFO - Uploading multiple files with metadata: 
+2024-09-09 10:11:45,180 - fastapi_app - INFO - Uploading file in group of files (1/1) with filename: superbowl.txt 
+2024-09-09 10:11:45,184 - fastapi_app - INFO - Processing list of documents of length: 39
+2024-09-09 10:11:45,185 - fastapi_app - INFO - Sending batch 0 to 20 / 39
+2024-09-09 10:11:45,185 - fastapi_app - INFO - Sending batch 20 to 39 / 39
+2024-09-09 10:11:45,984 - fastapi_app - INFO - POST /documents - Status: 200 - Time: 0.88s
+2024-09-09 10:15:20,763 - fastapi_app - INFO - Uploading multiple files with metadata: 
+2024-09-09 10:15:20,764 - fastapi_app - INFO - Uploading file in group of files (1/1) with filename: superbowl.txt 
+2024-09-09 10:15:20,769 - fastapi_app - INFO - Processing list of documents of length: 39
+2024-09-09 10:15:20,769 - fastapi_app - INFO - Sending batch 0 to 20 / 39
+2024-09-09 10:15:20,769 - fastapi_app - INFO - Sending batch 20 to 39 / 39
+2024-09-09 10:15:21,592 - fastapi_app - INFO - POST /documents - Status: 200 - Time: 0.90s
+2024-09-09 10:51:20,979 - fastapi_app - INFO - Uploading multiple files with metadata: 
+2024-09-09 10:51:20,981 - fastapi_app - INFO - Uploading file in group of files (1/1) with filename: superbowl.txt 
+2024-09-09 10:51:20,986 - fastapi_app - INFO - Processing list of documents of length: 39
+2024-09-09 10:51:20,986 - fastapi_app - INFO - Sending batch 0 to 20 / 39
+2024-09-09 10:51:20,987 - fastapi_app - INFO - Sending batch 20 to 39 / 39
+2024-09-09 10:51:21,793 - fastapi_app - INFO - POST /documents - Status: 200 - Time: 0.88s

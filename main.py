@@ -27,10 +27,18 @@ from docLoader import *
 import shutil
 from pathlib import Path
 from functools import lru_cache
+from logger import setup_logger, LogMiddleware
+from starlette.middleware.base import BaseHTTPMiddleware
+from langchain.globals import set_verbose
+
+
 
 load_dotenv()
+
+logger = setup_logger(name="fastapi_app")
 # uvicorn main:app --reload
 app = FastAPI()
+app.add_middleware(LogMiddleware, logger=logger)
 
 # Global Variables
 embed_model = OpenAIEmbeddings(model="text-embedding-3-small")
@@ -41,9 +49,6 @@ chat = ChatOpenAI(
     model='gpt-4o-mini-2024-07-18'
 )
 
-class MetaFile(BaseModel):
-    file_id: str
-    metaJson: dict | None = None
 
 # New function to get file_id requirement from environment
 @lru_cache()
@@ -66,12 +71,15 @@ def file_id_validator(
 
 @app.get("/")
 async def root() -> dict[str,str]:
+    logger.info("Handling root request")
     return {"message": "Hello World"}
 
 @app.get("/rag/llm/")
 async def sendAI(query: str = Query(...,description="User questions for LLM")) -> dict[str,str]:
+    logger.info(f"Handling sendAI request with query: {query}")
     messages = [HumanMessage(content=query)]
     res = await chat.ainvoke(messages)
+    logger.info(f"AI response generated for query: {query} with AI Response: {res.content}")
     return {"AI Response": res.content}
 
 @app.get("/rag/")
@@ -80,6 +88,7 @@ async def getContext(query: str = Query(..., description="The query to process t
                      filterJson: Annotated[ str  | None, Query(description="Json of metadata to search for")] = "",
                      file_ids: Annotated[List[str]| None, Query(description="file_id to search for")] = []
                      ) -> dict[str,str]:
+    logger.info(f"Handling RAG request with query: {query}, k: {k}, MetaData: {filterJson}, file_ids: {file_ids}")
     filter = {} 
     if filterJson :
         try:
@@ -90,7 +99,7 @@ async def getContext(query: str = Query(..., description="The query to process t
         context = await similarDocs(query, k)
     else:
         context = await similarDocs(query,k,filter,file_ids )
-
+    logger.info(f"The query: {query} returned context: \n\n {context}")
     return {"Context": context}
 
 #ADD: upload multiple documents, more than text files 
@@ -101,6 +110,7 @@ async def upload_file(
     vector_store_id: Annotated[str | None, Form()] = "",
     metaJson: Annotated[str| None, Form()] = "" 
 ) -> dict[str, str]:
+    logger.info(f"Uploading file with filename: {file.filename} with file_id: {file_id} and metadata: {metaJson}")
     metaData = {}
     if vector_store_id:
         metaData["vector_store_id"] = vector_store_id
@@ -137,6 +147,9 @@ async def upload_files(
     vector_store_id: Annotated[str | None, Form()] = "",
     metaJson: Annotated[str | None, Form()] = "" 
 ) -> dict[str, str]:
+    
+    logger.info(f"Uploading multiple files with metadata: {metaJson}")
+
     strict_requirement = get_file_id_requirement()
     
     if strict_requirement and (not file_ids or len(files) != len(file_ids)):
@@ -168,6 +181,7 @@ async def upload_files(
     }
     
     for i, file in enumerate(files):
+        logger.info(f"Uploading file in group of files ({i+1}/{len(files)}) with filename: {file.filename} ")
         if file.content_type not in allowed_types:
             raise HTTPException(status_code=400, detail=f"{file.content_type} is an Invalid file type")
         
@@ -190,6 +204,7 @@ async def upload_url(url: Annotated[str,Form(...,description="Link to pull data 
                      vector_store_id: Annotated[str | None, Form(description="Insert string vector id optional")] = "", 
                      metaJson: Annotated[str | None, Form(description="Insert JSON metadata opptional")] = ""
                      ) -> dict[str,str]:
+    logger.info(f"Uploading link: {url} with file_id: {file_id} metadata: {metaJson}")
     metaData = {}
     if vector_store_id:
         metaData["vector_store_id"] = vector_store_id
@@ -209,6 +224,7 @@ async def upload_urls(url_list: Annotated[List[str],Form(...,description="Links 
                      vector_store_id: Annotated[str | None, Form(description="Insert string vector id optional")] = "", 
                      metaJson: Annotated[str | None, Form(description="Insert JSON metadata opptional")] = ""
                      ) -> dict[str,str]:
+    logger.info(f"Uploading list of links with metadata: {metaJson}")
     metaData = {}
     url_list = url_list[0].split(',')
     if file_ids[0] != '':
@@ -224,6 +240,7 @@ async def upload_urls(url_list: Annotated[List[str],Form(...,description="Links 
             return {"error":"Invalid JSON"}
     tasks = []
     for i in range(len(url_list)):
+        logger.info(f"Uploading link({i+2}/{len(url_list)}: {url_list[i]} metadata: {metaJson}")
         if file_ids[0] != '':
             docData = await load_link(url_list[i], metaData, file_ids[i])
         else:
@@ -237,8 +254,10 @@ async def process_documents(docData: list[Document],
                              batch_size: int = 20, concurrent_max: int = 10):
     semaphore = asyncio.Semaphore(concurrent_max)
     tasks = [] 
+    logger.info(f"Processing list of documents of length: {len(docData)}")
     for i in range(0, len(docData), batch_size):
         batch = docData[i: min(i+batch_size, len(docData))]
+        logger.info(f"Sending batch {i} to {i+len(batch)} / {len(docData)}")
         task = asyncio.create_task(process_batch(batch, semaphore))
         tasks.append(task)
     await asyncio.gather(*tasks)
