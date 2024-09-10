@@ -6,11 +6,15 @@ from langchain_openai import OpenAIEmbeddings
 from langchain_core.documents import Document
 from dotenv import load_dotenv
 import os
+from qdrant_client import QdrantClient
+from langchain_qdrant import QdrantVectorStore
 from langchain_community.vectorstores.pgvecto_rs import PGVecto_rs
 from pgvecto_rs.sdk.filters import meta_contains
 from langchain_pinecone import PineconeVectorStore
 from  pinecone import Pinecone as Pinecone
 from pinecone import ServerlessSpec
+from qdrant_client.models import VectorParams, Distance
+
 
 
 class VectorStorage:
@@ -25,6 +29,8 @@ class VectorStorage:
             self.vectorDB = ChromaDB(index_name, embed_model)
         elif dbModel == 'pgvecto_rs':
             self.vectorDB = PGVectorDB(index_name, embed_model)
+        elif dbModel == 'Qdrant':
+            self.vectorDB = QdrantDB(index_name, embed_model)
         else:
             raise Exception(f"The VECTOR_DB_MODEL environment variable: {dbModel} is not supported")
     
@@ -63,6 +69,21 @@ class ChromaDB:
         collection_name=index_name,
         embedding_function=embed_model
     )
+class QdrantDB:
+    def __init__(self, index_name: str, embed_model: OpenAIEmbeddings):
+        url = os.getenv("SERVER_URI","http://localhost:6333/")
+        self.client = QdrantClient(url)
+        if not self.client.collection_exists(index_name):
+            self.client.create_collection(
+            collection_name=index_name,
+            vectors_config=VectorParams(size=1536, distance=Distance.COSINE),
+            )
+        self.vector_store = QdrantVectorStore.from_existing_collection(
+        embedding=embed_model,
+        collection_name=index_name,
+        url=url
+        )
+    
 class PGVectorDB:
     def __init__(self, index_name: str, embed_model: OpenAIEmbeddings):
         PORT = os.getenv("DB_PORT", 5432)

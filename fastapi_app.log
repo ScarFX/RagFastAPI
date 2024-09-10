@@ -45,3 +45,27 @@
 2024-09-09 10:51:20,986 - fastapi_app - INFO - Sending batch 0 to 20 / 39
 2024-09-09 10:51:20,987 - fastapi_app - INFO - Sending batch 20 to 39 / 39
 2024-09-09 10:51:21,793 - fastapi_app - INFO - POST /documents - Status: 200 - Time: 0.88s
+2024-09-10 12:06:18,067 - fastapi_app - INFO - GET /docs - Status: 200 - Time: 0.00s
+2024-09-10 12:06:18,331 - fastapi_app - INFO - GET /openapi.json - Status: 200 - Time: 0.04s
+2024-09-10 12:07:25,908 - fastapi_app - INFO - Handling RAG request with query: Who sang the national anthem?, k: 1, MetaData: , file_ids: []
+2024-09-10 12:07:27,299 - fastapi_app - INFO - The query: Who sang the national anthem? returned context: 
+
+ 
+2024-09-10 12:07:27,301 - fastapi_app - INFO - GET /rag/ - Status: 200 - Time: 1.40s
+2024-09-10 12:07:48,005 - fastapi_app - INFO - Uploading file with filename: superbowl.txt with file_id:  and metadata: 
+2024-09-10 12:07:48,011 - fastapi_app - INFO - Processing list of documents of length: 39
+2024-09-10 12:07:48,012 - fastapi_app - INFO - Sending batch 0 to 20 / 39
+2024-09-10 12:07:48,012 - fastapi_app - INFO - Sending batch 20 to 39 / 39
+2024-09-10 12:07:48,893 - fastapi_app - INFO - POST /document - Status: 200 - Time: 0.96s
+2024-09-10 12:08:06,618 - fastapi_app - INFO - Handling RAG request with query: Who sang the national anthem?, k: 1, MetaData: , file_ids: []
+2024-09-10 12:08:06,928 - fastapi_app - INFO - The query: Who sang the national anthem? returned context: 
+
+ The American Flag out on the field for the national anthem
+On January 18, 2024, the NFL announced that country music singer Reba McEntire would perform the U.S. national anthem. Actor Daniel Durant performed the national anthem in American Sign Language. In addition, rapper Post Malone performed "America the Beautiful" and R&B singer Andra Day accompanied by six female backup singers performed "Lift Every Voice and Sing", with actress Anjel Piñero and actor Shaheem Sanchez performing both songs in ASL.[120][121]
+
+Electronic music artist Kaskade performed before and during the game, making him the first DJ to perform throughout the Super Bowl. He replaced Tiësto, who dropped out after a family emergency.[122]
+
+The NFL invited players and coaches from Lahainaluna High School in Lahaina, Hawaii, to serve as honorary captains during the coin toss ceremony. Lahaina was one of the communities ravaged by the 2023 Hawaii wildfires.[123]
+
+Halftime
+2024-09-10 12:08:06,930 - fastapi_app - INFO - GET /rag/ - Status: 200 - Time: 0.31s

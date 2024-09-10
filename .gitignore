@@ -2,6 +2,7 @@ venv
 .env
 launch.json
 __pycache__
+qdrant.py
 chroma_langchain_db
 chroma
 uploads/.

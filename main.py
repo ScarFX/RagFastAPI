@@ -50,7 +50,7 @@ app.add_middleware(LogMiddleware, logger=logger)
 
 # Global Variables
 embed_model = OpenAIEmbeddings(model="text-embedding-3-small")
-index_name = "depends-db"  # Must be lower case or '-'
+index_name = "db-vectors"  # Must be lower case or '-'
 vector_storage = VectorStorage(index_name, embed_model)
 chat = ChatOpenAI(
     openai_api_key=os.environ["OPENAI_API_KEY"], model="gpt-4o-mini-2024-07-18"

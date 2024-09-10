@@ -20,3 +20,11 @@ docker run \
   -p 5432:5432 \
   -d tensorchord/pgvecto-rs:pg16-v0.2.0
 ```
+
+## qdrant 
+Env variables:
+  VECTOR_DB_MODEL=Qdrant
+  SERVER_URL="http://localhost:6333/" 
+
+1. Start Qdrant docker image in port 6333 
+2. Check out http://localhost:6333/dashboard to make sure DB working 
