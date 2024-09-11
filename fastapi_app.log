@@ -69,3 +69,62 @@ The NFL invited players and coaches from Lahainaluna High School in Lahaina, Haw
 
 Halftime
 2024-09-10 12:08:06,930 - fastapi_app - INFO - GET /rag/ - Status: 200 - Time: 0.31s
+2024-09-11 14:24:55,182 - fastapi_app - INFO - GET /docs - Status: 200 - Time: 0.00s
+2024-09-11 14:24:55,434 - fastapi_app - INFO - GET /openapi.json - Status: 200 - Time: 0.04s
+2024-09-11 14:25:54,489 - fastapi_app - INFO - Uploading table file with filename: cities.csv
+2024-09-11 14:27:49,385 - fastapi_app - INFO - Uploading table file with filename: cities.csv
+2024-09-11 14:31:02,726 - fastapi_app - INFO - Uploading table file with filename: cities.csv
+2024-09-11 14:31:02,785 - fastapi_app - INFO - POST /table - Status: 200 - Time: 0.08s
+2024-09-11 14:36:32,455 - fastapi_app - INFO - Uploading table file with filename: excelExample.xlsx
+2024-09-11 14:41:25,933 - fastapi_app - INFO - Uploading table file with filename: excelExample.xlsx
+2024-09-11 14:43:57,267 - fastapi_app - INFO - Uploading table file with filename: excelExample.xlsx
+2024-09-11 14:44:30,277 - fastapi_app - INFO - Uploading table file with filename: excelExample.xlsx
+2024-09-11 14:44:30,542 - fastapi_app - INFO - POST /table - Status: 200 - Time: 0.28s
+2024-09-11 15:39:23,235 - fastapi_app - INFO - Uploading table file with filename: WinterAthletes.csv
+2024-09-11 15:39:23,311 - fastapi_app - INFO - POST /table - Status: 200 - Time: 0.30s
+2024-09-11 15:44:00,127 - fastapi_app - INFO - Uploading table file with filename: WinterAthletes.csv
+2024-09-11 15:44:00,203 - fastapi_app - INFO - POST /table - Status: 200 - Time: 0.23s
+2024-09-11 15:45:11,225 - fastapi_app - INFO - GET /docs - Status: 200 - Time: 0.00s
+2024-09-11 15:45:11,477 - fastapi_app - INFO - GET /openapi.json - Status: 200 - Time: 0.05s
+2024-09-11 15:45:54,109 - fastapi_app - INFO - Q/A with: question: What is the average age of the athletes? 
+2024-09-11 15:46:35,305 - fastapi_app - INFO - Q/A with: question: What is the average age of the athletes? 
+2024-09-11 15:47:24,972 - fastapi_app - INFO - GET /qa - Status: 200 - Time: 49.67s
+2024-09-11 15:49:50,811 - fastapi_app - INFO - Q/A with: question: What is the average age of the athletes? 
+2024-09-11 15:49:52,601 - fastapi_app - INFO - Q/A Chained returned with input_variables=['query', 'question', 'result'] template='Given the following user question, corresponding SQL query, and SQL result, answer the user question.\n\n    Question: {question}\n    SQL Query: {query}\n    SQL Result: {result}\n    Answer: '
+2024-09-11 15:49:52,605 - fastapi_app - INFO - GET /qa - Status: 200 - Time: 1.80s
+2024-09-11 15:53:01,227 - fastapi_app - INFO - Q/A with: question: What is the average age of the athletes? 
+2024-09-11 15:53:01,968 - fastapi_app - INFO - GET /qa - Status: 200 - Time: 0.74s
+2024-09-11 16:02:35,767 - fastapi_app - INFO - GET /docs - Status: 200 - Time: 0.00s
+2024-09-11 16:02:35,942 - fastapi_app - INFO - GET /openapi.json - Status: 200 - Time: 0.05s
+2024-09-11 16:02:53,747 - fastapi_app - INFO - Q/A with: question: What is the average age of the athletes?
+2024-09-11 16:02:54,497 - fastapi_app - INFO - GET /qa - Status: 200 - Time: 0.75s
+2024-09-11 16:07:57,956 - fastapi_app - INFO - Uploading table file with filename: WinterAthletes.csv
+2024-09-11 16:07:58,039 - fastapi_app - INFO - POST /table - Status: 200 - Time: 0.25s
+2024-09-11 16:08:08,863 - fastapi_app - INFO - Q/A with: question: What is the average age of the athletes?
+2024-09-11 16:11:45,187 - fastapi_app - INFO - Q/A with: question: What is the average age of the athletes?
+2024-09-11 16:12:08,317 - fastapi_app - INFO - Q/A with: question: What is the average age of the athletes?
+2024-09-11 16:12:09,070 - fastapi_app - INFO - GET /qa - Status: 200 - Time: 0.75s
+2024-09-11 16:13:33,336 - fastapi_app - INFO - Q/A with: question: What is the average age of the athletes?
+2024-09-11 16:13:34,120 - fastapi_app - INFO - GET /qa - Status: 200 - Time: 0.79s
+2024-09-11 16:17:18,153 - fastapi_app - INFO - Q/A with: question: What is the average age of the athletes?
+2024-09-11 16:17:19,009 - fastapi_app - INFO - GET /qa - Status: 200 - Time: 0.86s
+2024-09-11 16:17:25,948 - fastapi_app - INFO - Q/A with: question: What is the average age of the athletes?
+2024-09-11 16:17:27,287 - fastapi_app - INFO - GET /qa - Status: 200 - Time: 1.34s
+2024-09-11 16:19:07,255 - fastapi_app - INFO - Q/A with: question: What is the average age of the athletes?
+2024-09-11 16:19:08,407 - fastapi_app - INFO - GET /qa - Status: 200 - Time: 1.15s
+2024-09-11 16:19:57,224 - fastapi_app - INFO - Q/A with: question: What is the average age of the athletes?
+2024-09-11 16:19:58,619 - fastapi_app - INFO - GET /qa - Status: 200 - Time: 1.40s
+2024-09-11 16:22:39,548 - fastapi_app - INFO - Q/A with: question: What is the average age of the athletes?
+2024-09-11 16:22:40,962 - fastapi_app - INFO - Q/A Chained returned with q
+2024-09-11 16:22:42,243 - fastapi_app - INFO - GET /qa - Status: 200 - Time: 2.70s
+2024-09-11 16:26:49,526 - fastapi_app - INFO - Q/A with: question: What is the average age of the athletes?
+2024-09-11 16:26:50,970 - fastapi_app - INFO - Q/A Chained returned with q
+2024-09-11 16:26:50,974 - fastapi_app - INFO - GET /qa - Status: 200 - Time: 1.45s
+2024-09-11 16:30:27,733 - fastapi_app - INFO - Q/A with: question: What is the average age of the athletes?
+2024-09-11 16:30:29,108 - fastapi_app - INFO - Q/A Chained returned with:The average age of the athletes is approximately 26.10 years. to the question: What is the average age of the athletes? with SQL command: operator.itemgetter('query')
+2024-09-11 16:30:29,111 - fastapi_app - INFO - GET /qa - Status: 200 - Time: 1.38s
+2024-09-11 16:31:52,181 - fastapi_app - INFO - Q/A with: question: What is the average age of the athletes?
+2024-09-11 16:31:53,749 - fastapi_app - INFO - Q/A Chained returned with:The average age of the athletes is approximately 26.10 years. to the question:
+ What is the average age of the athletes? with SQL command:
+ operator.itemgetter('query')
+2024-09-11 16:31:53,753 - fastapi_app - INFO - GET /qa - Status: 200 - Time: 1.57s

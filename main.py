@@ -39,14 +39,27 @@ from functools import lru_cache
 from logger import setup_logger, LogMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
 from langchain.globals import set_verbose
+from ETLdb import ETLdb
+from langchain_community.utilities import SQLDatabase
+from langchain.chains import create_sql_query_chain
+from operator import itemgetter
+from langchain_core.output_parsers import StrOutputParser
+from langchain_core.prompts import PromptTemplate
+from langchain_core.runnables import RunnablePassthrough
+from langchain_community.tools.sql_database.tool import QuerySQLDataBaseTool
+
+
+
+
 
 
 load_dotenv()
-
 logger = setup_logger(name="fastapi_app")
 # uvicorn main:app --reload
 app = FastAPI()
 app.add_middleware(LogMiddleware, logger=logger)
+os.environ["LANGCHAIN_TRACING_V2"] = "false"
+os.environ["LANGCHAIN_API_KEY"] = os.getenv("LANGCHAIN_API_KEY","")
 
 # Global Variables
 embed_model = OpenAIEmbeddings(model="text-embedding-3-small")
@@ -55,6 +68,8 @@ vector_storage = VectorStorage(index_name, embed_model)
 chat = ChatOpenAI(
     openai_api_key=os.environ["OPENAI_API_KEY"], model="gpt-4o-mini-2024-07-18"
 )
+DB_LOCATION = '/uploadDB/etl.db' #directory must exist, but .db file not neccessary
+etl = ETLdb(DB_LOCATION)
 
 
 # New function to get file_id requirement from environment
@@ -124,7 +139,63 @@ async def getContext(
     logger.info(f"The query: {query} returned context: \n\n {context}")
     return {"Context": context}
 
+@app.get("/qa")
+async def qa_database(
+    question: Annotated[str, Query(..., description="The question to ask the database tables")]
+) -> dict[str, str]:
+    logger.info(
+        f"Q/A with: question: {question}"
+    )
+    db = SQLDatabase.from_uri("sqlite://"+DB_LOCATION)
+    parseSQL = lambda cmd: cmd[cmd.find(': ')+2:]
+    write_query = create_sql_query_chain(chat, db) | parseSQL
+    execute_query = QuerySQLDataBaseTool(db=db)
+    answer_prompt = PromptTemplate.from_template(
+    """Given the following user question, corresponding SQL query, and SQL result, answer the user question.
 
+    Question: {question}
+    SQL Query: {query}
+    SQL Result: {result}
+    Answer: """
+    )
+
+    chain = (
+        RunnablePassthrough.assign(query=write_query).assign(
+            result=itemgetter("query") | execute_query
+        )
+        | answer_prompt
+        | chat
+        | StrOutputParser()
+    )
+    response = chain.invoke({"question": question})
+    logger.info(
+       f"Q/A Chained returned with:{response} to the question:\n {question}"
+    )
+    return {"AI Response:": response}
+
+#Excel or CSV File, structured data 
+@app.post("/table")
+async def upload_table(
+    file: Annotated[UploadFile, File(..., description="Excel or CSV to upload")],
+    table_name: Annotated[str, Form(..., description="Meaningful name of table")]
+) -> dict[str, str]: 
+    logger.info(
+        f"Uploading table file with filename: {file.filename}"
+    )
+    allowed_types = {
+    "csv", "xlsx"
+}
+    file_ext = file.filename.split(".")[-1].lower()
+    if file_ext not in allowed_types:  # check type
+        raise HTTPException(
+            status_code=400, detail=f"{file_ext} is an Invalid file type"
+        )
+    file_location = Path("uploads") / file.filename  # write location
+    with file_location.open("wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+    etl.fileToSQL(file_location, table_name, file_ext)
+
+    return {"filename":file.filename, "Message":"Table successfully uploaded"}
 # ADD: upload multiple documents, more than text files
 @app.post("/document")
 async def upload_file(

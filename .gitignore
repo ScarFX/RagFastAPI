@@ -2,11 +2,15 @@ venv
 .env
 launch.json
 __pycache__
-qdrant.py
 chroma_langchain_db
 chroma
-uploads/.
+uploads/*
+uploadDB/*
 pgvector.py
 uploads
 .git
 .idea
+SQL_QA.py
+temp
+.txt
+csvExcelSQL.py
