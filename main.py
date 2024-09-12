@@ -47,10 +47,8 @@ from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import PromptTemplate
 from langchain_core.runnables import RunnablePassthrough
 from langchain_community.tools.sql_database.tool import QuerySQLDataBaseTool
-
-
-
-
+from langchain_community.agent_toolkits import SQLDatabaseToolkit
+from langgraph.prebuilt import create_react_agent
 
 
 load_dotenv()
@@ -58,7 +56,7 @@ logger = setup_logger(name="fastapi_app")
 # uvicorn main:app --reload
 app = FastAPI()
 app.add_middleware(LogMiddleware, logger=logger)
-os.environ["LANGCHAIN_TRACING_V2"] = "false"
+os.environ["LANGCHAIN_TRACING_V2"] = "true"
 os.environ["LANGCHAIN_API_KEY"] = os.getenv("LANGCHAIN_API_KEY","")
 
 # Global Variables
@@ -147,29 +145,29 @@ async def qa_database(
         f"Q/A with: question: {question}"
     )
     db = SQLDatabase.from_uri("sqlite://"+DB_LOCATION)
-    parseSQL = lambda cmd: cmd[cmd.find(': ')+2:]
-    write_query = create_sql_query_chain(chat, db) | parseSQL
-    execute_query = QuerySQLDataBaseTool(db=db)
-    answer_prompt = PromptTemplate.from_template(
-    """Given the following user question, corresponding SQL query, and SQL result, answer the user question.
+    toolkit = SQLDatabaseToolkit(db=db, llm=chat)
+    tools = toolkit.get_tools()
+    sql_prompt = """You are an agent designed to interact with a SQL database.
+Given an input question, create a syntactically correct SQLite query to run, then look at the results of the query and return the answer.
+Unless the user specifies a specific number of examples they wish to obtain, always limit your query to at most 5 results.
+You can order the results by a relevant column to return the most interesting examples in the database.
+Never query for all the columns from a specific table, only ask for the relevant columns given the question.
+You have access to tools for interacting with the database.
+Only use the given tools. Only use the information returned by the tools to construct your final answer.
+You MUST double check your query before executing it. If you get an error while executing a query, rewrite the query and try again.
 
-    Question: {question}
-    SQL Query: {query}
-    SQL Result: {result}
-    Answer: """
-    )
+DO NOT make any DML statements (INSERT, UPDATE, DELETE, DROP etc.) to the database.
 
-    chain = (
-        RunnablePassthrough.assign(query=write_query).assign(
-            result=itemgetter("query") | execute_query
-        )
-        | answer_prompt
-        | chat
-        | StrOutputParser()
-    )
-    response = chain.invoke({"question": question})
+You have access to the following tables: {table_names}
+""".format(
+    table_names=db.get_usable_table_names()
+)
+    system_message = SystemMessage(content=sql_prompt)
+    agent_executor = create_react_agent(chat, tools, state_modifier=system_message)
+    res = agent_executor.invoke({"messages":[HumanMessage(content=question)]})
+    response = res['messages'][-1].content
     logger.info(
-       f"Q/A Chained returned with:{response} to the question:\n {question}"
+       f"Q/A Agent returned with:{response} to the question:\n {question}"
     )
     return {"AI Response:": response}
 
