@@ -407,7 +407,7 @@ async def similarDocs(
     # {source_knowledge}
 
     # Query: {query}"""
-    source_knowledge = "\n------------------------------------------".join(
+    source_knowledge = '\n -----------------DOCUMENT-SEPERATOR------------------------------ \n'.join(
         [res.page_content for res in results]
     )
     return source_knowledge
