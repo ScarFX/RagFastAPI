@@ -63,7 +63,8 @@ async def load_link(url:str, metadata:dict = None, file_id:str = None):
     if metadata:
         for doc in docs:
             doc.metadata = doc.metadata | metadata 
-            if file_id:
-                doc.metadata["file_id"] = file_id
+    if file_id:
+        for doc in docs:
+            doc.metadata["file_id"] = file_id
     return docs
     
