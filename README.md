@@ -16,11 +16,11 @@ docker run \
 Must set `VECTOR_DB_MODEL=pgvecto_rs`
 
 3. Env variables will be set as below for default credentials, modify if needed (no action needed for running docker image above)
-`DB_HOST = localhost`
-`DB_USER = postgres` 
-`DB_PASS = mysecretpassword`
-`DB_NAME = postgres`
-`DB_PORT = 5432` 
+`DB_HOST = localhost`,
+`DB_USER = postgres`,
+`DB_PASS = mysecretpassword`,
+`DB_NAME = postgres`,
+`DB_PORT = 5432`,
 
 ## qdrant 
 Set Env variables:
